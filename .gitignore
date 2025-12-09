@@ -1,0 +1,17 @@
+*.exe
+*.obj
+*.o
+*.pdb
+*.tlog
+*.ilk
+*.log
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.vs/
+bin/
+build/
+bin/
+*.bin
+*.exe
+*.dat
