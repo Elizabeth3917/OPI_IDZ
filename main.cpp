@@ -35,7 +35,7 @@ public:
     virtual std::unique_ptr<IFileSaver> createSaver() = 0;
 };
 
-// ---------------- TXT Implementation ----------------
+// ---------------- TXT ----------------
 class TXTLoader : public IFileLoader {
 public:
     QString load(const QString &path) override {
@@ -61,13 +61,9 @@ public:
     std::unique_ptr<IFileSaver>  createSaver() override { return std::make_unique<TXTSaver>(); }
 };
 
-// ---------------- HTML Implementation (very simple parser) ----------------
+// ---------------- HTML ----------------
 static QString htmlToPlain(const QString &html) {
-    // Very small HTML stripper:
-    // - replace <br> and <p> with paragraph separators
-    // - remove other tags
     QString s = html;
-    // normalize lowercase for tag handling - but preserve original for content: do simple replacement by patterns
     QString out;
     bool inTag = false;
     QString tag;
@@ -88,7 +84,6 @@ static QString htmlToPlain(const QString &html) {
         // normal char
         if (!inTag) out += c;
     }
-    // compress multiple blank lines to two newlines
     QStringList lines = out.split('\n');
     QString result;
     int emptyCount = 0;
@@ -112,12 +107,10 @@ public:
 class HTMLSaver : public IFileSaver {
 public:
     bool save(const QString &path, const QString &text) override {
-        // Save as plain text but with minimal html wrapper
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
         QTextStream out(&f);
         out << "<html><body>\n";
-        // Convert paragraphs separated by blank line to <p>
         QStringList paras = text.split("\n\n", Qt::SkipEmptyParts);
         for (const QString &p : paras) {
             out << "<p>" << p.toHtmlEscaped() << "</p>\n";
@@ -132,14 +125,13 @@ public:
     std::unique_ptr<IFileSaver>  createSaver() override { return std::make_unique<HTMLSaver>(); }
 };
 
-// ---------------- BIN Implementation ----------------
+// ---------------- BIN ----------------
 class BINLoader : public IFileLoader {
 public:
     QString load(const QString &path) override {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly)) return {};
         QByteArray bytes = f.readAll();
-        // Просто перетворюємо байти у QString
         return QString::fromUtf8(bytes);
     }
 };
@@ -149,7 +141,6 @@ public:
     bool save(const QString &path, const QString &text) override {
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly)) return false;
-        // Конвертуємо QString у байти UTF-8
         QByteArray bytes = text.toUtf8();
         f.write(bytes);
         return true;
@@ -193,7 +184,6 @@ public:
 
 // ---------------- Utility: paragraph counting ----------------
 static int countParagraphs(const QString &text) {
-    // paragraphs separated by one or more blank lines
     QStringList paras;
     QStringList lines = text.split('\n');
     QString cur;
@@ -209,7 +199,6 @@ static int countParagraphs(const QString &text) {
     return paras.count();
 }
 
-// ---------------- Main UI ----------------
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     QWidget window;
@@ -238,15 +227,12 @@ int main(int argc, char *argv[]) {
     subject.add(&msgObs);
 
     int lastParagraphCount = 0;
-    // track initial empty state
     lastParagraphCount = countParagraphs(txt->toPlainText());
 
-    // Helper: select factory by extension
     auto factoryForExtension = [](const QString &ext)->std::unique_ptr<IFileFactory> {
         if (ext == "txt") return std::make_unique<TXTFactory>();
         if (ext == "html" || ext == "htm") return std::make_unique<HTMLFactory>();
         if (ext == "bin") return std::make_unique<BINFactory>();
-        // default to txt
         return std::make_unique<TXTFactory>();
     };
 
@@ -280,7 +266,6 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(actExit, &QAction::triggered, &app, &QApplication::quit);
 
-    // textChanged: detect paragraph additions/deletions and do autosave on addition
     QObject::connect(txt, &QTextEdit::textChanged, [&]() {
         QString text = txt->toPlainText();
         int curCount = countParagraphs(text);
@@ -288,7 +273,6 @@ int main(int argc, char *argv[]) {
             int deleted = lastParagraphCount - curCount;
             subject.notifyDeleted(deleted);
         } else if (curCount > lastParagraphCount) {
-            // addition: auto-save if we have a path
             if (!currentPath.isEmpty()) {
                 if (!currentFactory) currentFactory = factoryForExtension(QFileInfo(currentPath).suffix().toLower());
                 auto saver = currentFactory->createSaver();
