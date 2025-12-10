@@ -81,7 +81,6 @@ static QString htmlToPlain(const QString &html) {
             }
             continue;
         }
-        // normal char
         if (!inTag) out += c;
     }
     QStringList lines = out.split('\n');
@@ -153,7 +152,7 @@ public:
     std::unique_ptr<IFileSaver>  createSaver() override { return std::make_unique<BINSaver>(); }
 };
 
-// ---------------- Observer (Subject + Observer) ----------------
+// ---------------- Observer ----------------
 class IObserver {
 public:
     virtual ~IObserver() = default;
@@ -166,6 +165,7 @@ class Subject {
 public:
     void add(IObserver* o) { if (o && !obs.contains(o)) obs.append(o); }
     void remove(IObserver* o) { obs.removeAll(o); }
+
     void notifyDeleted(int n) { for (auto o : obs) o->onParagraphsDeleted(n); }
     void notifySaved(const QString &p) { for (auto o : obs) o->onAutoSaved(p); }
 };
